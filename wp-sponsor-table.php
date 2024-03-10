@@ -18,7 +18,7 @@ function wp_create_sponsor_table() {
         name varchar(100) NOT NULL,
         logo varchar(100) NOT NULL,
         url varchar(100) NOT NULL,
-        PRIMARY KEY  (id)
+        PRIMARY KEY (id)
     ) $charset_collate;";
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
