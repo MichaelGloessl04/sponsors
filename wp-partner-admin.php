@@ -18,6 +18,8 @@ function wp_create_partner_table() {
         name varchar(100) NOT NULL,
         logo varchar(100) NOT NULL,
         url varchar(100) NOT NULL,
+        project varchar(100) NOT NULL,
+        level varchar(100) NOT NULL,
         PRIMARY KEY (id)
     ) $charset_collate;";
 
@@ -32,14 +34,29 @@ add_action('rest_api_init', 'register_partner_routes');
 function register_partner_routes() {
     register_rest_route('wp/v2', '/partners/', array(
         'methods' => 'GET',
-        'callback' => 'get_partner'
+        'callback' => 'get_partner',
+        'args' => array(
+            'project' => array(
+                'default' => '',
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field'
+            )
+        ),
     ));
 }
 
 function get_partner(WP_REST_Request $request) {
     global $wpdb;
     $table_name = $wpdb->prefix . 'partner';
-    $partners = $wpdb->get_results("SELECT * FROM $table_name");
+    $project = $request->get_param('project');
+    
+    $sql = "SELECT * FROM $table_name";
+    if ($project) {
+        $sql .= " WHERE project = %s";
+        $sql = $wpdb->prepare($sql, $project);
+    }
+
+    $partners = $wpdb->get_results($sql);
     if ($partners) {
         return $partners;
     } else {
@@ -80,6 +97,18 @@ function render_admin_page() {
                     <label for="partner-logo">Logo:</label>
                     <input type="file" id="partner-logo" name="partner-logo" accept="image/*" required>
                 </div>
+                <div class="form-group">
+                    <label for="partner-project">Project:</label>
+                    <input type="text" id="partner-project" name="partner-project" placeholder="Project Name" required>
+                </div>
+                <div class="form-group">
+                    <label for="partner-level">Level:</label>
+                    <select id="partner-level" name="partner-level" required>
+                        <option value="Hauptsponsor">Hauptsponsor</option>
+                        <option value="Platin">Platin</option>
+                        <option value="Gold">Gold</option>
+                        <option value="Silber">Silber</option>
+                    </select>
                 <button type="submit" class="button button-primary" name="add-partner">Add Partner</button>
             </form>
         </div>
@@ -91,7 +120,9 @@ function render_admin_page() {
                         <th>Name</th>
                         <th>Logo</th>
                         <th>URL</th>
-                        <th>Action</th>
+                        <th>Project</th>
+                        <th>Level</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,6 +137,8 @@ function render_admin_page() {
                             echo "<td>{$partner->name}</td>";
                             echo "<td><img src='{$partner->logo}' style='max-width: 100px; height: auto;' alt='{$partner->name}' /></td>";
                             echo "<td><a href='{$partner->url}' target='_blank'>{$partner->url}</a></td>";
+                            echo "<td>{$partner->project}</td>";
+                            echo "<td>{$partner->level}</td>";
                             echo "<td><form method='post'><input type='hidden' name='partner-id' value='{$partner->id}'><button class='button button-danger' name='delete-partner'>Delete</button></form></td>";
                             echo "</tr>";
                         }
@@ -135,6 +168,7 @@ function save_partner() {
     $table_name = $wpdb->prefix . 'partner';
     $partner_name = sanitize_text_field($_POST['partner-name']);
     $partner_url = esc_url_raw($_POST['partner-url']);
+    $partner_project = sanitize_text_field($_POST['partner-project']);
 
     if (!empty($_FILES['partner-logo']['tmp_name'])) {
         $attachment_id = media_handle_upload('partner-logo', 0);
@@ -155,7 +189,9 @@ function save_partner() {
         array(
             'name' => $partner_name,
             'logo' => $partner_logo,
-            'url' => $partner_url
+            'url' => $partner_url,
+            'project' => $partner_project,
+            'level' => $_POST['partner-level']
         )
     );
 
